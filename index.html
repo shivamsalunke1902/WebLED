@@ -28,10 +28,10 @@
         const broker = "broker.hivemq.com";
         const wsPort = 8884; // Secure WebSocket port
         const clientId = "web_" + Math.random().toString(16).substr(2, 8);
-        
-        // Create client (WSS connection)
-        const client = new Paho.MQTT.Client(broker, wsPort, clientId);
-        
+
+        // ✅ WebSocket path required by HiveMQ = "/mqtt"
+        const client = new Paho.MQTT.Client(broker, wsPort, "/mqtt", clientId);
+
         // Connect options
         const connectOptions = {
             onSuccess: onConnect,
@@ -39,29 +39,29 @@
             timeout: 3,
             keepAliveInterval: 30,
             cleanSession: true,
-            useSSL: true   // ✅ required for GitHub Pages (HTTPS)
+            useSSL: true   // ✅ required for HTTPS
         };
-        
+
         // Connect to broker
         client.connect(connectOptions);
-        
+
         // UI Elements
         const ledButton = document.getElementById('ledButton');
         const statusDiv = document.getElementById('status');
         let ledState = false;
-        
+
         // Connection handlers
         function onConnect() {
             statusDiv.textContent = "Connected!";
             client.subscribe("esp32/led");
             setTimeout(() => sendMessage("esp32/button", "STATUS"), 1000);
         }
-        
+
         function onFailure(error) {
             statusDiv.textContent = "Connection failed: " + error.errorMessage;
             setTimeout(() => location.reload(), 3000); // Auto-reload
         }
-        
+
         // Message handler
         client.onMessageArrived = function(message) {
             if (message.destinationName === "esp32/led") {
@@ -69,20 +69,20 @@
                 updateButton();
             }
         };
-        
+
         // Update button UI
         function updateButton() {
             ledButton.textContent = ledState ? "Turn OFF" : "Turn ON";
             ledButton.className = ledState ? "on" : "";
         }
-        
+
         // Send MQTT message
         function sendMessage(topic, payload) {
             const message = new Paho.MQTT.Message(payload);
             message.destinationName = topic;
             client.send(message);
         }
-        
+
         // Button click handler
         ledButton.addEventListener('click', function() {
             sendMessage("esp32/button", "TOGGLE");
