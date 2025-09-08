@@ -1,0 +1,93 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ESP32 LED Control</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+        #ledButton {
+            padding: 15px 30px;
+            font-size: 18px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #f44336;
+            color: white;
+        }
+        #ledButton.on { background-color: #4CAF50; }
+        #status { margin-top: 20px; color: #666; }
+    </style>
+</head>
+<body>
+    <h1>ESP32 LED Control</h1>
+    <button id="ledButton">Turn ON</button>
+    <div id="status">Connecting...</div>
+
+    <script>
+        // Configuration
+        const broker = "broker.hivemq.com";
+        const wsPort = 8000; // WebSocket port
+        const clientId = "web_" + Math.random().toString(16).substr(2, 8);
+        
+        // Create client
+        const client = new Paho.MQTT.Client(broker, wsPort, clientId);
+        
+        // Connect options
+        const connectOptions = {
+            onSuccess: onConnect,
+            onFailure: onFailure,
+            timeout: 3,
+            keepAliveInterval: 30,
+            cleanSession: true,
+            useSSL: false
+        };
+        
+        // Connect to broker
+        client.connect(connectOptions);
+        
+        // UI Elements
+        const ledButton = document.getElementById('ledButton');
+        const statusDiv = document.getElementById('status');
+        let ledState = false;
+        
+        // Connection handlers
+        function onConnect() {
+            statusDiv.textContent = "Connected!";
+            client.subscribe("esp32/led");
+            setTimeout(() => sendMessage("esp32/button", "STATUS"), 1000);
+        }
+        
+        function onFailure(error) {
+            statusDiv.textContent = "Connection failed: " + error.errorMessage;
+            setTimeout(() => location.reload(), 3000); // Auto-reload
+        }
+        
+        // Message handler
+        client.onMessageArrived = function(message) {
+            if (message.destinationName === "esp32/led") {
+                ledState = message.payloadString === "ON";
+                updateButton();
+            }
+        };
+        
+        // Update button UI
+        function updateButton() {
+            ledButton.textContent = ledState ? "Turn OFF" : "Turn ON";
+            ledButton.className = ledState ? "on" : "";
+        }
+        
+        // Send MQTT message
+        function sendMessage(topic, payload) {
+            const message = new Paho.MQTT.Message(payload);
+            message.destinationName = topic;
+            client.send(message);
+        }
+        
+        // Button click handler
+        ledButton.addEventListener('click', function() {
+            sendMessage("esp32/button", "TOGGLE");
+        });
+    </script>
+</body>
+</html>
